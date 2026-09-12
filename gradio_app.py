@@ -3,6 +3,9 @@ import requests
 from supabase import create_client
 from PIL import Image, ImageEnhance
 import urllib.parse
+import numpy as np
+from PIL import Image,ImageEnhance,ImageFilter
+from rembg import remove
 
 # ==========================================
 # 1. CONFIGURATION
@@ -15,16 +18,48 @@ N8N_WEBHOOK_URL = "http://localhost:5678/webhook/voice-product"
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
+def enhance_to_studio_image(input_image):
+    if input_image is None:
+        return None
+
+    if isinstance(input_image, np.ndarray):
+        img = Image.fromarray(input_image)
+    elif isinstance(input_image, Image.Image):
+        img = input_image
+    else:
+        img = Image.open(input_image)
+
+    target_dim = 1600
+    img.thumbnail((target_dim, target_dim), Image.Resampling.LANCZOS)
+
+    cutout = remove(img)
+    alpha_mask = cutout.split()[3]
+
+    backdrop = Image.new("RGBA", cutout.size, (244, 246, 248, 255))
+
+    glow_layer = Image.new("RGBA", cutout.size, (255, 255, 255, 0))
+    glow_color = Image.new("RGBA", cutout.size, (255, 255, 255, 140))
+    glow_mask = alpha_mask.filter(ImageFilter.GaussianBlur(radius=28))
+    glow_layer.paste(glow_color, mask=glow_mask)
+
+    backdrop.alpha_composite(glow_layer)
+    backdrop.paste(cutout, mask=alpha_mask)
+    final_output = backdrop.convert("RGB")
+
+    contrast_engine = ImageEnhance.Contrast(final_output)
+    final_output = contrast_engine.enhance(1.28)
+
+    color_engine = ImageEnhance.Color(final_output)
+    final_output = color_engine.enhance(1.18)
+
+    final_output = final_output.filter(ImageFilter.UnsharpMask(radius=2.5, percent=130, threshold=3))
+    return final_output
 # ==========================================
 # 2. BACKEND FUNCTIONS
 # ==========================================
 def process_product_data(image, audio, raw_cost):
-    # 1. Image Enhancement (Pillow)
-    enhanced_image = None
-    if image is not None:
-        pil_img = Image.fromarray(image)
-        enhancer = ImageEnhance.Brightness(pil_img)
-        enhanced_image = enhancer.enhance(1.2)
+    enhanced_image= enhance_to_studio_image(image)
+  
 
     # 2. Voice Note processing via n8n
     title_text = "Handmade Rural Craft"
@@ -35,7 +70,7 @@ def process_product_data(image, audio, raw_cost):
         try:
             with open(audio, 'rb') as f:
                 files = {'data': (audio, f, 'audio/wav')}
-                res = requests.post(N8N_WEBHOOK_URL, files=files, timeout=30)
+                res = requests.post(N8N_WEBHOOK_URL, files=files, timeout=120)
                 if res.status_code == 200:
                     data = res.json()
                     title_text = data.get('title_hi') or data.get('title_en') or title_text
@@ -49,18 +84,22 @@ def process_product_data(image, audio, raw_cost):
 def publish_to_db(name, phone, category, title, desc, price):
     if not name or not phone:
         return "❌ Kripya apna naam aur WhatsApp number zaroor bharein!"
+    try:
+        clean_price=float(price) if price else 0.0
+    except Exception :
+        clean_price=0.0    
     
     payload = {
-        "artisan_name": name,
-        "artisan_phone": phone,
-        "category": category,
-        "title_hi": str(title),
-        "desc_hi": str(desc),
-        "suggested_price": str(price),
+        "artisan_name": str(name).strip(),
+        "artisan_phone": str(phone).strip(),
+        "category": str(category) if category else "General",
+        "title_hi": str(title) if title else "Bina Naam Ka Saman",
+        "desc_hi": str(desc) if desc else "",
+        "suggested_price": clean_price,
         "image_url": "https://images.unsplash.com/photo-1578749556568-bc2c40e68b61"
     }
     try:
-        supabase.table("products").insert(payload).execute()
+        res= supabase.table("products").insert(payload).execute()
         return "🎉 Badhai! Aapka samaan bazaar me live ho gaya hai!"
     except Exception as e:
         return f"Error: {e}"
