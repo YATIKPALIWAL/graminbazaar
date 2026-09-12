@@ -5,7 +5,6 @@ from PIL import Image, ImageEnhance
 import urllib.parse
 import numpy as np
 from PIL import Image,ImageEnhance,ImageFilter
-from rembg import remove
 
 # ==========================================
 # 1. CONFIGURATION
@@ -21,6 +20,7 @@ supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 def enhance_to_studio_image(input_image):
     if input_image is None:
         return None
+    from rembg import remove
 
     if isinstance(input_image, np.ndarray):
         img = Image.fromarray(input_image)
