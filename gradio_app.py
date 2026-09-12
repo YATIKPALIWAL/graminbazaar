@@ -20,7 +20,6 @@ supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 def enhance_to_studio_image(input_image):
     if input_image is None:
         return None
-    from rembg import remove
 
     if isinstance(input_image, np.ndarray):
         img = Image.fromarray(input_image)
@@ -29,30 +28,25 @@ def enhance_to_studio_image(input_image):
     else:
         img = Image.open(input_image)
 
-    target_dim = 1600
-    img.thumbnail((target_dim, target_dim), Image.Resampling.LANCZOS)
+    # 1. Image ko RGB me convert karein
+    img = img.convert("RGB")
 
-    cutout = remove(img)
-    alpha_mask = cutout.split()[3]
+    # 2. Andhere me li photo me ujala (Smart Brightness)
+    brightness_engine = ImageEnhance.Brightness(img)
+    img = brightness_engine.enhance(1.25)  # 25% extra roshni
 
-    backdrop = Image.new("RGBA", cutout.size, (244, 246, 248, 255))
+    # 3. Rang nikharne ke liye (Saturation / Color boost)
+    color_engine = ImageEnhance.Color(img)
+    img = color_engine.enhance(1.30)  # Rang khilkar aayenge
 
-    glow_layer = Image.new("RGBA", cutout.size, (255, 255, 255, 0))
-    glow_color = Image.new("RGBA", cutout.size, (255, 255, 255, 140))
-    glow_mask = alpha_mask.filter(ImageFilter.GaussianBlur(radius=28))
-    glow_layer.paste(glow_color, mask=glow_mask)
+    # 4. Contrast (Taaki photo dhundhli na lage)
+    contrast_engine = ImageEnhance.Contrast(img)
+    img = contrast_engine.enhance(1.15)
 
-    backdrop.alpha_composite(glow_layer)
-    backdrop.paste(cutout, mask=alpha_mask)
-    final_output = backdrop.convert("RGB")
+    # 5. Soft Studio Glow (Halka glow effect overlay)
+    glow_blur = img.filter(ImageFilter.GaussianBlur(radius=8))
+    final_output = Image.blend(img, glow_blur, alpha=0.20)  # 20% soft glow mix
 
-    contrast_engine = ImageEnhance.Contrast(final_output)
-    final_output = contrast_engine.enhance(1.28)
-
-    color_engine = ImageEnhance.Color(final_output)
-    final_output = color_engine.enhance(1.18)
-
-    final_output = final_output.filter(ImageFilter.UnsharpMask(radius=2.5, percent=130, threshold=3))
     return final_output
 # ==========================================
 # 2. BACKEND FUNCTIONS
