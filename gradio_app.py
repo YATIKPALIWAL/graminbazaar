@@ -29,24 +29,36 @@ def enhance_to_studio_image(input_image):
     else:
         img = Image.open(input_image)
 
-    # 1. Image ko RGB me convert karein
     img = img.convert("RGB")
 
-    # 2. Andhere me li photo me ujala (Smart Brightness)
-    brightness_engine = ImageEnhance.Brightness(img)
-    img = brightness_engine.enhance(1.25)  # 25% extra roshni
+    # 1. Image Sizing: 800x800 स्क्वायर कैनवस (कैटलॉग के लिए बेस्ट)
+    img.thumbnail((800, 800), Image.Resampling.LANCZOS)
+    canvas = Image.new("RGB", (800, 800), (248, 249, 250))  # क्लीन सॉफ्ट न्यूट्रल बैकग्राउंड
+    offset = ((800 - img.width) // 2, (800 - img.height) // 2)
+    canvas.paste(img, offset)
+    img = canvas
 
-    # 3. Rang nikharne ke liye (Saturation / Color boost)
-    color_engine = ImageEnhance.Color(img)
-    img = color_engine.enhance(1.30)  # Rang khilkar aayenge
+    # 2. Pop-up & Clarity (Sharpness boost)
+    sharp_engine = ImageEnhance.Sharpness(img)
+    img = sharp_engine.enhance(1.45)
 
-    # 4. Contrast (Taaki photo dhundhli na lage)
+    # 3. Rich Contrast (डीप शैडोज और हाईलाइट्स)
     contrast_engine = ImageEnhance.Contrast(img)
-    img = contrast_engine.enhance(1.15)
+    img = contrast_engine.enhance(1.22)
 
-    # 5. Soft Studio Glow (Halka glow effect overlay)
-    glow_blur = img.filter(ImageFilter.GaussianBlur(radius=8))
-    final_output = Image.blend(img, glow_blur, alpha=0.20)  # 20% soft glow mix
+    # 4. Color Pop (रंग खिलकर बाहर आएंगे)
+    color_engine = ImageEnhance.Color(img)
+    img = color_engine.enhance(1.28)
+
+    # 5. Cinematic Warmth / Studio Tone
+    r, g, b = img.split()
+    r = r.point(lambda i: min(255, int(i * 1.05)))   # हल्का वार्म गोल्डन टोन
+    b = b.point(lambda i: int(i * 0.96))             # वार्म टिंट बैलेंस
+    img = Image.merge("RGB", (r, g, b))
+
+    # 6. Soft Diffusion Highlight (प्रोडक्ट ग्लो)
+    highlight = img.filter(ImageFilter.GaussianBlur(radius=6))
+    final_output = Image.blend(img, highlight, alpha=0.12)
 
     return final_output
 # ==========================================
