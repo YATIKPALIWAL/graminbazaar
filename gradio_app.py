@@ -15,7 +15,8 @@ SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 # Local n8n Webhook URL
 N8N_WEBHOOK_URL = "https://puma-faster-collapse.ngrok-free.dev/webhook/voice-product"
 
-supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+def get_supabase():
+    return create_client(SUPABASE_URL, SUPABASE_KEY)
 
 def enhance_to_studio_image(input_image):
     if input_image is None:
@@ -93,14 +94,19 @@ def publish_to_db(name, phone, category, title, desc, price):
         "image_url": "https://images.unsplash.com/photo-1578749556568-bc2c40e68b61"
     }
     try:
-        res= supabase.table("products").insert(payload).execute()
+        client =get_supabase()
+        res=client.table("products").insert(payload).execute()
         return "🎉 Badhai! Aapka samaan bazaar me live ho gaya hai!"
     except Exception as e:
         return f"Error: {e}"
 
 def load_marketplace(category_filter):
-    res = supabase.table("products").select("*").order("id", desc=True).execute()
-    items = res.data or []
+    try:
+        client = get_supabase()
+        res=client.table("products").select("*").order("id",desc=True).execute()
+        items = res.data or []
+    except Exception:
+        items=[]    
 
     html_cards = "<div style='display: flex; flex-wrap: wrap; gap: 16px; justify-content: center;'>"
     for item in items:
