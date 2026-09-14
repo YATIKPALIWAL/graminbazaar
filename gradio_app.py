@@ -18,10 +18,16 @@ N8N_WEBHOOK_URL = "https://puma-faster-collapse.ngrok-free.dev/webhook/voice-pro
 def get_supabase():
     return create_client(SUPABASE_URL, SUPABASE_KEY)
 
-def enhance_to_studio_image(input_image):
+import io
+import requests
+import numpy as np
+from PIL import Image, ImageEnhance, ImageFilter
+
+def enhance_to_amazon_style(input_image):
     if input_image is None:
         return None
 
+    # 1. Image Format Normalization
     if isinstance(input_image, np.ndarray):
         img = Image.fromarray(input_image)
     elif isinstance(input_image, Image.Image):
@@ -30,37 +36,73 @@ def enhance_to_studio_image(input_image):
         img = Image.open(input_image)
 
     img = img.convert("RGB")
+    # Processing speed optimize karne ke liye max 600px
+    img.thumbnail((600, 600), Image.Resampling.LANCZOS)
 
-    # 1. Image Sizing: 800x800 स्क्वायर कैनवस (कैटलॉग के लिए बेस्ट)
-    img.thumbnail((800, 800), Image.Resampling.LANCZOS)
-    canvas = Image.new("RGB", (800, 800), (248, 249, 250))  # क्लीन सॉफ्ट न्यूट्रल बैकग्राउंड
-    offset = ((800 - img.width) // 2, (800 - img.height) // 2)
-    canvas.paste(img, offset)
-    img = canvas
+    # 2. Fast Free Background Removal API (2 seconds)
+    # Render CPU par local model load karne ki jagah lightweight call
+    buffered = io.BytesIO()
+    img.save(buffered, format="JPEG", quality=85)
+    buffered.seek(0)
 
-    # 2. Pop-up & Clarity (Sharpness boost)
-    sharp_engine = ImageEnhance.Sharpness(img)
-    img = sharp_engine.enhance(1.45)
+    try:
+        # Fast free cut-out API
+        res = requests.post(
+            "https://api.remove.bg/v1.0/removebg",
+            files={"image_file": buffered},
+            data={"size": "auto"},
+            headers={"X-Api-Key": "YOUR_FREE_API_KEY"}, # Free account gives 50 calls/month
+            timeout=4
+        )
+        if res.status_code == 200:
+            product_cutout = Image.open(io.BytesIO(res.content)).convert("RGBA")
+        else:
+            raise Exception("Fallback to local")
+    except Exception:
+        # Fallback: Agar API na chale to instant high-contrast isolate
+        from rembg import remove, new_session
+        # lightweight 'u2netp' session (yeh normal rembg se 5 guna fast hai)
+        session = new_session("u2netp")
+        product_cutout = remove(img, session=session).convert("RGBA")
 
-    # 3. Rich Contrast (डीप शैडोज और हाईलाइट्स)
-    contrast_engine = ImageEnhance.Contrast(img)
-    img = contrast_engine.enhance(1.22)
+    # 3. Amazon Detail Enhancement (Clarity, Sharpness & Color pop)
+    r, g, b, alpha = product_cutout.split()
+    rgb_img = Image.merge("RGB", (r, g, b))
+    
+    rgb_img = ImageEnhance.Sharpness(rgb_img).enhance(1.4)  # Amazon jaisa sharp texture
+    rgb_img = ImageEnhance.Contrast(rgb_img).enhance(1.15)
+    rgb_img = ImageEnhance.Color(rgb_img).enhance(1.2)
+    
+    r_new, g_new, b_new = rgb_img.split()
+    product_cutout = Image.merge("RGBA", (r_new, g_new, b_new, alpha))
 
-    # 4. Color Pop (रंग खिलकर बाहर आएंगे)
-    color_engine = ImageEnhance.Color(img)
-    img = color_engine.enhance(1.28)
+    # 4. Amazon 800x800 Pure White Studio Canvas
+    canvas_size = (800, 800)
+    white_canvas = Image.new("RGBA", canvas_size, (255, 255, 255, 255))
 
-    # 5. Cinematic Warmth / Studio Tone
-    r, g, b = img.split()
-    r = r.point(lambda i: min(255, int(i * 1.05)))   # हल्का वार्म गोल्डन टोन
-    b = b.point(lambda i: int(i * 0.96))             # वार्म टिंट बैलेंस
-    img = Image.merge("RGB", (r, g, b))
+    # Product ko center me fit karein
+    product_cutout.thumbnail((620, 620), Image.Resampling.LANCZOS)
+    p_w, p_h = product_cutout.size
+    offset_x = (800 - p_w) // 2
+    offset_y = (800 - p_h) // 2
 
-    # 6. Soft Diffusion Highlight (प्रोडक्ट ग्लो)
-    highlight = img.filter(ImageFilter.GaussianBlur(radius=6))
-    final_output = Image.blend(img, highlight, alpha=0.12)
+    # 5. Realistic Ground Shadow (Amazon Product Drop-Shadow)
+    shadow_mask = Image.new("L", canvas_size, 0)
+    from PIL import ImageDraw
+    shadow_draw = ImageDraw.Draw(shadow_mask)
+    # Product ke theek neeche halki oval shadow
+    shadow_box = [offset_x + 30, offset_y + p_h - 15, offset_x + p_w - 30, offset_y + p_h + 15]
+    shadow_draw.ellipse(shadow_box, fill=90)
+    shadow_mask = shadow_mask.filter(ImageFilter.GaussianBlur(radius=12))
 
-    return final_output
+    shadow_layer = Image.new("RGBA", canvas_size, (0, 0, 0, 0))
+    shadow_layer.paste((40, 40, 40, 100), (0, 0), shadow_mask)
+
+    # Composite: White Canvas -> Shadow -> Clean Product Cutout
+    final_composite = Image.alpha_composite(white_canvas, shadow_layer)
+    final_composite.paste(product_cutout, (offset_x, offset_y), product_cutout)
+
+    return final_composite.convert("RGB")
 # ==========================================
 # 2. BACKEND FUNCTIONS
 # ==========================================
