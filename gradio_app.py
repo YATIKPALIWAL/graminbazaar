@@ -9,7 +9,7 @@ from PIL import Image,ImageEnhance,ImageFilter
 # ==========================================
 # 1. CONFIGURATION
 # ==========================================
-SUPABASE_URL = "https://rldpbncnvjypdvkuwzrp.supabase.co"
+SUPABASE_URL = "https://rldpnbcnvjypdvkuwzrp.supabase.co/rest/v1/"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJsZHBuYmNudmp5cGR2a3V3enJwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkxMTgzNzUsImV4cCI6MjEwNDY5NDM3NX0._s0qUZ8ImcNGUFCQpskDes83uFADNONdPyV3cDsnqgA" # Apni poori anon public key yahan paste karein
 
 # Local n8n Webhook URL
