@@ -1,11 +1,9 @@
 import gradio as gr
 import requests
 from supabase import create_client
-from PIL import Image, ImageEnhance
 import urllib.parse
 import numpy as np
-from PIL import Image,ImageEnhance,ImageFilter
-
+from PIL import Image, ImageEnhance,ImageFilter,ImageDraw
 # ==========================================
 # 1. CONFIGURATION
 # ==========================================
@@ -18,10 +16,7 @@ N8N_WEBHOOK_URL = "https://puma-faster-collapse.ngrok-free.dev/webhook/voice-pro
 def get_supabase():
     return create_client(SUPABASE_URL, SUPABASE_KEY)
 
-import io
-import requests
-import numpy as np
-from PIL import Image, ImageEnhance, ImageFilter
+
 def enhance_to_studio_image(input_image):
     if input_image is None:
         return None
