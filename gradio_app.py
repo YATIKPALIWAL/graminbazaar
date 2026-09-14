@@ -69,13 +69,15 @@ def process_product_data(image, audio, raw_cost):
     # 2. Voice Note processing via n8n
     title_text = "Handmade Rural Craft"
     desc_text = "Eco-friendly handmade item by village artisan."
-    suggested_price = raw_cost * 2
+    suggested_price =int(raw_cost) * 2 if (raw_cost and str(raw_cost).strip()!="") else 150
 
     if audio is not None:
         try:
+            import os
+            file_name = os.path.basename(audio) if isinstance(audio, str) else "audio.wav"
             with open(audio, 'rb') as f:
-                files = {'data': (audio, f, 'audio/wav')}
-                res = requests.post(N8N_WEBHOOK_URL, files=files, timeout=120)
+                files = {'data': (file_name, f, 'audio/wav')}
+                res = requests.post(N8N_WEBHOOK_URL, files=files, timeout=20)
                 if res.status_code == 200:
                     data = res.json()
                     title_text = data.get('title_hi') or data.get('title') or data.get('title_en') or title_text
