@@ -104,7 +104,7 @@ def process_product_data(image, audio, raw_cost):
             # अगर ऑडियो बाइट्स मिल गए तो n8n को भेजें
             if audio_bytes:
                 files = {'data': (filename, audio_bytes, 'audio/wav')}
-                res = requests.post(N8N_WEBHOOK_URL, files=files, timeout=30)
+                res = requests.post(N8N_WEBHOOK_URL, files=files, timeout=90)
                 
                 if res.status_code == 200:
                     data = res.json()
