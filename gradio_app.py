@@ -68,9 +68,9 @@ def process_product_data(image, audio, raw_cost):
                 res = requests.post(N8N_WEBHOOK_URL, files=files, timeout=120)
                 if res.status_code == 200:
                     data = res.json()
-                    title_text = data.get('title_hi') or data.get('title_en') or title_text
-                    desc_text = data.get('desc_hi') or data.get('desc_en') or desc_text
-                    suggested_price = data.get('suggested_price') or suggested_price
+                    title_text = data.get('title_hi') or data.get('title') or data.get('title_en') or title_text
+                    desc_text = data.get('desc_hi') or data.get('description') or data.get('desc_en') or desc_text
+                    suggested_price = data.get('suggested_price') or data.get('price') or suggested_price
         except Exception as e:
             desc_text = f"{desc_text} (AI connection fallback: {e})"
 
@@ -80,9 +80,9 @@ def publish_to_db(name, phone, category, title, desc, price):
     if not name or not phone:
         return "❌ Kripya apna naam aur WhatsApp number zaroor bharein!"
     try:
-        clean_price=float(price) if price else 0.0
-    except Exception :
-        clean_price=0.0    
+        clean_price = float(price) if price else 0.0
+    except Exception:
+        clean_price = 0.0    
     
     payload = {
         "artisan_name": str(name).strip(),
@@ -93,13 +93,24 @@ def publish_to_db(name, phone, category, title, desc, price):
         "suggested_price": clean_price,
         "image_url": "https://images.unsplash.com/photo-1578749556568-bc2c40e68b61"
     }
-    try:
-        client =get_supabase()
-        res=client.table("products").insert(payload).execute()
-        return "🎉 Badhai! Aapka samaan bazaar me live ho gaya hai!"
-    except Exception as e:
-        return f"Error: {e}"
 
+    headers = {
+        "apikey": SUPABASE_KEY,
+        "Authorization": f"Bearer {SUPABASE_KEY}",
+        "Content-Type": "application/json",
+        "Prefer": "return=minimal"
+    }
+    
+    url = f"{SUPABASE_URL}/rest/v1/products"
+    
+    try:
+        r = requests.post(url, json=payload, headers=headers, timeout=15)
+        if r.status_code in [200, 201]:
+            return "🎉 Badhai! Aapka samaan bazaar me live ho gaya hai!"
+        else:
+            return f"Database Error ({r.status_code}): {r.text}"
+    except Exception as e:
+        return f"Publish Error: {e}"
 def load_marketplace(category_filter):
     try:
         client = get_supabase()
