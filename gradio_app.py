@@ -10,10 +10,10 @@ from PIL import Image,ImageEnhance,ImageFilter
 # 1. CONFIGURATION
 # ==========================================
 SUPABASE_URL = "https://rldpbncnvjypdvkowzrp.supabase.co"
-SUPABASE_KEY = "YOUR_SUPABASE_ANON_PUBLIC_KEY" # Apni poori anon public key yahan paste karein
+SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJsZHBuYmNudmp5cGR2a3V3enJwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkxMTgzNzUsImV4cCI6MjEwNDY5NDM3NX0._s0qUZ8ImcNGUFCQpskDes83uFADNONdPyV3cDsnqgA" # Apni poori anon public key yahan paste karein
 
 # Local n8n Webhook URL
-N8N_WEBHOOK_URL = "http://localhost:5678/webhook/voice-product"
+N8N_WEBHOOK_URL = "https://puma-faster-collapse.ngrok-free.dev/webhook/voice-product"
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
