@@ -4,6 +4,9 @@ from supabase import create_client
 import urllib.parse
 import numpy as np
 from PIL import Image, ImageEnhance,ImageFilter,ImageDraw
+import os
+import io
+import scipy.io.wavfile as wavfile
 # ==========================================
 # 1. CONFIGURATION
 # ==========================================
@@ -62,27 +65,57 @@ def enhance_to_studio_image(input_image):
 # ==========================================
 # 2. BACKEND FUNCTIONS
 # ==========================================
+import os
+import io
+import scipy.io.wavfile as wavfile
+
 def process_product_data(image, audio, raw_cost):
-    enhanced_image= enhance_to_studio_image(image)
-  
+    enhanced_image = enhance_to_studio_image(image)
 
     # 2. Voice Note processing via n8n
     title_text = "Handmade Rural Craft"
     desc_text = "Eco-friendly handmade item by village artisan."
-    suggested_price =int(raw_cost) * 2 if (raw_cost and str(raw_cost).strip()!="") else 150
+    suggested_price = int(raw_cost) * 2 if (raw_cost and str(raw_cost).strip() != "") else 150
 
     if audio is not None:
         try:
-            import os
-            file_name = os.path.basename(audio) if isinstance(audio, str) else "audio.wav"
-            with open(audio, 'rb') as f:
-                files = {'data': (file_name, f, 'audio/wav')}
-                res = requests.post(N8N_WEBHOOK_URL, files=files, timeout=20)
+            audio_bytes = None
+            filename = "voice_note.wav"
+
+            # 1. अगर Gradio ने फाइल पाथ दिया है
+            if isinstance(audio, str) and os.path.exists(audio):
+                with open(audio, 'rb') as f:
+                    audio_bytes = f.read()
+                filename = os.path.basename(audio)
+
+            # 2. अगर Gradio ने (sample_rate, numpy_array) टपल दिया है
+            elif isinstance(audio, tuple):
+                sr, y = audio
+                buffer = io.BytesIO()
+                wavfile.write(buffer, sr, y)
+                audio_bytes = buffer.getvalue()
+
+            # 3. अगर Gradio ने डिक्शनरी फॉर्मेट दिया है
+            elif isinstance(audio, dict) and "path" in audio and os.path.exists(audio["path"]):
+                with open(audio["path"], 'rb') as f:
+                    audio_bytes = f.read()
+                filename = os.path.basename(audio["path"])
+
+            # अगर ऑडियो बाइट्स मिल गए तो n8n को भेजें
+            if audio_bytes:
+                files = {'data': (filename, audio_bytes, 'audio/wav')}
+                res = requests.post(N8N_WEBHOOK_URL, files=files, timeout=30)
+                
                 if res.status_code == 200:
                     data = res.json()
                     title_text = data.get('title_hi') or data.get('title') or data.get('title_en') or title_text
                     desc_text = data.get('desc_hi') or data.get('description') or data.get('desc_en') or desc_text
                     suggested_price = data.get('suggested_price') or data.get('price') or suggested_price
+                else:
+                    desc_text = f"{desc_text} (n8n status code: {res.status_code})"
+            else:
+                desc_text = f"{desc_text} (Audio file not found on server)"
+
         except Exception as e:
             desc_text = f"{desc_text} (AI connection fallback: {e})"
 
