@@ -69,11 +69,10 @@ def enhance_to_studio_image(input_image):
 import os
 import io
 import scipy.io.wavfile as wavfile
-
-def process_product_data(image, audio, raw_cost):
+# 1. फ़ंक्शन के इनपुट में 'language' जोड़ें:
+def process_product_data(image, audio, raw_cost, language="Hindi"):
     enhanced_image = enhance_to_studio_image(image)
 
-    # 2. Voice Note processing via n8n
     title_text = "Handmade Rural Craft"
     desc_text = "Eco-friendly handmade item by village artisan."
     suggested_price = int(raw_cost) * 2 if (raw_cost and str(raw_cost).strip() != "") else 150
@@ -83,29 +82,25 @@ def process_product_data(image, audio, raw_cost):
             audio_bytes = None
             filename = "voice_note.wav"
 
-            # 1. अगर Gradio ने फाइल पाथ दिया है
             if isinstance(audio, str) and os.path.exists(audio):
                 with open(audio, 'rb') as f:
                     audio_bytes = f.read()
                 filename = os.path.basename(audio)
-
-            # 2. अगर Gradio ने (sample_rate, numpy_array) टपल दिया है
             elif isinstance(audio, tuple):
                 sr, y = audio
                 buffer = io.BytesIO()
                 wavfile.write(buffer, sr, y)
                 audio_bytes = buffer.getvalue()
-
-            # 3. अगर Gradio ने डिक्शनरी फॉर्मेट दिया है
             elif isinstance(audio, dict) and "path" in audio and os.path.exists(audio["path"]):
                 with open(audio["path"], 'rb') as f:
                     audio_bytes = f.read()
                 filename = os.path.basename(audio["path"])
 
-            # अगर ऑडियो बाइट्स मिल गए तो n8n को भेजें
             if audio_bytes:
                 files = {'data': (filename, audio_bytes, 'audio/wav')}
-                res = requests.post(N8N_WEBHOOK_URL, files=files, timeout=90)
+                # 2. n8n को 'language' डेटा पेलोड के रूप में भेजें:
+                payload_data = {'language': language}
+                res = requests.post(N8N_WEBHOOK_URL, files=files, data=payload_data, timeout=120)
                 
                 if res.status_code == 200:
                     data = res.json()
@@ -116,7 +111,6 @@ def process_product_data(image, audio, raw_cost):
                     desc_text = f"{desc_text} (n8n status code: {res.status_code})"
             else:
                 desc_text = f"{desc_text} (Audio file not found on server)"
-
         except Exception as e:
             desc_text = f"{desc_text} (AI connection fallback: {e})"
 
@@ -239,6 +233,7 @@ with gr.Blocks(title="GraminBazaar") as demo:
                         value="Clay Pottery & Crafts"
                     )
                     raw_cost = gr.Number(label="Kacchi Samagri ki Laagat (₹)", value=100)
+                    output_lang=gr.Radio(choices=["Hindi","English","Hinglish"]),value="Hindi",label="Output Language"
                 
                 with gr.Column():
                     cam_input = gr.Image(label="Product Photo (Camera/Upload)", sources=["webcam", "upload"], type="numpy")
@@ -258,7 +253,7 @@ with gr.Blocks(title="GraminBazaar") as demo:
 
             gen_btn.click(
                 fn=process_product_data,
-                inputs=[cam_input, mic_input, raw_cost],
+                inputs=[cam_input, mic_input, raw_cost,output_lang],
                 outputs=[enhanced_out, title_out, desc_out, price_out]
             )
 
