@@ -279,7 +279,7 @@ with gr.Blocks(title="GraminBazaar") as demo:
                         choices=["Clay Pottery & Crafts", "Handicrafts & Home Decor", "Textiles & Weaving", "Homemade Organic Food", "Other"],
                         value="Clay Pottery & Crafts"
                     )
-                    raw_cost = gr.Number(label="Kacchi Samagri ki Laagat (₹)", value=100)
+                    raw_cost = gr.Number(label="Manufacuring Cost(₹)", value=100)
                     output_lang=gr.Radio(choices=["Hindi","English","Hinglish"],value="Hindi",label="Output Language")
                     with gr.Row():
                         seller_location = gr.Textbox(
