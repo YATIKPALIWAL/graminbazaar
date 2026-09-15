@@ -228,27 +228,32 @@ def load_marketplace(category_filter):
         wa_msg = urllib.parse.quote(f"Namaste {seller}, mujhe aapka '{title}' kharidna hai.")
         wa_link = f"https://wa.me/91{phone}?text={wa_msg}"
 
-        # लोकेशन अलग निकालना
-        loc_badge = "📍 Kota, Rajasthan"
+        # 👉 [यहाँ पेस्ट करें: नया लोकेशन + गूगल मैप्स नेविगेशन बटन] 👈
+        loc_badge = "Kota, Rajasthan"
         display_desc = desc
         if "📍 Location:" in str(desc):
             parts = str(desc).split("📍 Location:")
             display_desc = parts[0].strip()
-            loc_badge = f"📍 {parts[1].strip()}"
+            loc_badge = parts[1].strip()
+
+        # गूगल मैप्स का डायरेक्ट नेविगेशन लिंक
+        map_nav_url = f"https://www.google.com/maps/search/?api=1&query={urllib.parse.quote(loc_badge)}"
+
         card = f"""
         <div style='border: 1px solid #ddd; border-radius: 10px; padding: 12px; width: 280px; box-shadow: 2px 2px 8px rgba(0,0,0,0.1); background-color: white;'>
             <img src='{img}' style='width: 100%; height: 180px; object-fit: cover; border-radius: 8px;' />
             <h3 style='margin: 8px 0 4px 0; color: #111;'>{title}</h3>
             <p style='font-size: 12px; color: #666; margin: 0;'>By: {seller} | <b>{cat}</b></p>
-            <p style='font-size: 12px; color: #e65100; margin: 4px 0; font-weight: bold;'>{loc_badge}</p>
+            <p style='font-size: 12px; color: #e65100; margin: 4px 0; font-weight: bold;'>📍 {loc_badge}</p>
             <p style='font-size: 13px; color: #444; margin: 6px 0;'>{display_desc}</p>
             <h4 style='color: #2e7d32; margin: 6px 0;'>₹{price}</h4>
-            <div style='margin-top: 10px; display: flex; gap: 8px;'>
-                <a href='tel:{phone}' style='text-decoration: none; padding: 6px 12px; background-color: #2196F3; color: white; border-radius: 6px; font-size: 13px;'>📞 Call</a>
-                <a href='{wa_link}' target='_blank' style='text-decoration: none; padding: 6px 12px; background-color: #25D366; color: white; border-radius: 6px; font-size: 13px;'>💬 WhatsApp</a>
+            <div style='margin-top: 10px; display: flex; gap: 6px; flex-wrap: wrap;'>
+                <a href='tel:{phone}' style='text-decoration: none; padding: 6px 10px; background-color: #2196F3; color: white; border-radius: 6px; font-size: 12px;'>📞 Call</a>
+                <a href='{wa_link}' target='_blank' style='text-decoration: none; padding: 6px 10px; background-color: #25D366; color: white; border-radius: 6px; font-size: 12px;'>💬 WhatsApp</a>
+                <a href='{map_nav_url}' target='_blank' style='text-decoration: none; padding: 6px 10px; background-color: #ff5722; color: white; border-radius: 6px; font-size: 12px;'>📍 View on Map</a>
             </div>
         </div>
-        """    
+        """
        
         html_cards += card
 
