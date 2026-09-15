@@ -35,18 +35,23 @@ async () => {
     });
 }
 """
+def update_map(loc_text):
+    if not loc_text or not str(loc_text).strip():
+        loc_text = "Kota, Rajasthan"
+    
+    # अगर यूजर ने लैटिट्यूड/लॉन्गीट्यूड डाला है
+    if "," in str(loc_text) and any(c.isdigit() for c in loc_text):
+        try:
+            lat, lon = [x.strip() for x in str(loc_text).split(",")[:2]]
+            lat_f, lon_f = float(lat), float(lon)
+            bbox = f"{lon_f-0.03},{lat_f-0.03},{lon_f+0.03},{lat_f+0.03}"
+            return f'<iframe width="100%" height="200" style="border-radius: 8px; border: 1px solid #ddd;" src="https://www.openstreetmap.org/export/embed.html?bbox={bbox}&layer=mapnik&marker={lat_f},{lon_f}"></iframe>'
+        except Exception:
+            pass
 
-def update_map(coords_str):
-    if not coords_str or "," not in str(coords_str):
-        coords_str = "25.1800, 75.8300"
-    try:
-        lat, lon = [x.strip() for x in str(coords_str).split(",")]
-        lat_f, lon_f = float(lat), float(lon)
-        bbox = f"{lon_f-0.03},{lat_f-0.03},{lon_f+0.03},{lat_f+0.03}"
-        return f''
-    except Exception:
-        return '<div>Map preview unavailable</div>'
-
+    # अगर यूजर ने शहर/गाँव का नाम लिखा है (जैसे Kota, Rajasthan)
+    query = requests.utils.quote(str(loc_text))
+    return f'<iframe width="100%" height="200" style="border-radius: 8px; border: 1px solid #ddd;" src="https://maps.google.com/maps?q={query}&t=&z=13&ie=UTF8&iwloc=&output=embed"></iframe>'
 def enhance_to_studio_image(input_image):
     if input_image is None:
         return None
@@ -142,9 +147,11 @@ def process_product_data(image, audio, raw_cost, language="Hindi"):
 
     return enhanced_image, title_text, desc_text, int(suggested_price)
 
-def publish_to_db(name, phone, category, title, desc, price, image):
+def publish_to_db(name, phone, category,location, title, desc, price, image):
     if not name or not phone:
         return "❌ Kripya apna naam aur WhatsApp number zaroor bharein!"
+    clean_loc = str(location).strip() if location else "Kota, Rajasthan"
+    desc = f"{desc}\n\n📍 Location: {clean_loc}"
     try:
         clean_price = float(price) if price else 0.0
     except Exception:
@@ -221,19 +228,28 @@ def load_marketplace(category_filter):
         wa_msg = urllib.parse.quote(f"Namaste {seller}, mujhe aapka '{title}' kharidna hai.")
         wa_link = f"https://wa.me/91{phone}?text={wa_msg}"
 
+        # लोकेशन अलग निकालना
+        loc_badge = "📍 Kota, Rajasthan"
+        display_desc = desc
+        if "📍 Location:" in str(desc):
+            parts = str(desc).split("📍 Location:")
+            display_desc = parts[0].strip()
+            loc_badge = f"📍 {parts[1].strip()}"
         card = f"""
         <div style='border: 1px solid #ddd; border-radius: 10px; padding: 12px; width: 280px; box-shadow: 2px 2px 8px rgba(0,0,0,0.1); background-color: white;'>
             <img src='{img}' style='width: 100%; height: 180px; object-fit: cover; border-radius: 8px;' />
             <h3 style='margin: 8px 0 4px 0; color: #111;'>{title}</h3>
             <p style='font-size: 12px; color: #666; margin: 0;'>By: {seller} | <b>{cat}</b></p>
-            <p style='font-size: 13px; color: #444; margin: 8px 0;'>{desc}</p>
+            <p style='font-size: 12px; color: #e65100; margin: 4px 0; font-weight: bold;'>{loc_badge}</p>
+            <p style='font-size: 13px; color: #444; margin: 6px 0;'>{display_desc}</p>
             <h4 style='color: #2e7d32; margin: 6px 0;'>₹{price}</h4>
             <div style='margin-top: 10px; display: flex; gap: 8px;'>
                 <a href='tel:{phone}' style='text-decoration: none; padding: 6px 12px; background-color: #2196F3; color: white; border-radius: 6px; font-size: 13px;'>📞 Call</a>
                 <a href='{wa_link}' target='_blank' style='text-decoration: none; padding: 6px 12px; background-color: #25D366; color: white; border-radius: 6px; font-size: 13px;'>💬 WhatsApp</a>
             </div>
         </div>
-        """
+        """    
+       
         html_cards += card
 
     html_cards += "</div>"
@@ -261,13 +277,17 @@ with gr.Blocks(title="GraminBazaar") as demo:
                     raw_cost = gr.Number(label="Kacchi Samagri ki Laagat (₹)", value=100)
                     output_lang=gr.Radio(choices=["Hindi","English","Hinglish"],value="Hindi",label="Output Language")
                     with gr.Row():
-                        loc_btn = gr.Button("📍 Upload My Live Location", variant="secondary")
-                        seller_location = gr.Textbox(label="Artisan Location Coordinates", value="25.1800, 75.8300")
+                        seller_location = gr.Textbox(
+                            label="Gaon / Shehar ya Location", 
+                            placeholder="Apne gaon ya shehar ka naam likhein ya button dabayein", 
+                            value="Kota, Rajasthan"
+                        )
+                        loc_btn = gr.Button("📍 Use Current GPS", variant="secondary")
 
                     map_html = gr.HTML(
-                           value='',
-                           label="Location Map"
+                        value='<iframe width="100%" height="200" style="border-radius: 8px; border: 1px solid #ddd;" src="https://maps.google.com/maps?q=Kota,Rajasthan&t=&z=13&ie=UTF8&iwloc=&output=embed"></iframe>'
                     )
+                 
                 
                 with gr.Column():
                     cam_input = gr.Image(label="Product Photo (Camera/Upload)", sources=["webcam", "upload"], type="numpy")
@@ -279,10 +299,12 @@ with gr.Blocks(title="GraminBazaar") as demo:
                 js=get_gps_js,
                 outputs=seller_location
             ).then(
-                 fn=update_map,
+                fn=update_map,
                 inputs=seller_location,
                 outputs=map_html
             )
+            # 1. टाइप करने पर मैप अपडेट हो:
+            seller_location.change(fn=update_map, inputs=seller_location, outputs=map_html)
 
             with gr.Row():
                 enhanced_out = gr.Image(label="Auto-Enhanced Photo")
@@ -296,16 +318,17 @@ with gr.Blocks(title="GraminBazaar") as demo:
 
             gen_btn.click(
                 fn=process_product_data,
-                inputs=[cam_input, mic_input, raw_cost,output_lang],
+                inputs=[cam_input, mic_input, raw_cost, output_lang],
                 outputs=[enhanced_out, title_out, desc_out, price_out]
             )
 
+            # 2. inputs में category के बाद seller_location जोड़ दिया:
             publish_btn.click(
                 fn=publish_to_db,
-                inputs=[seller_name, seller_phone, category, title_out, desc_out, price_out,enhanced_out],
+                inputs=[seller_name, seller_phone, category, seller_location, title_out, desc_out, price_out, enhanced_out],
                 outputs=[publish_status]
             )
-
+          
         # --- TAB 2: BUYER MARKETPLACE ---
         with gr.TabItem("🛒 Buyer Marketplace"):
             with gr.Row():
