@@ -20,6 +20,32 @@ N8N_WEBHOOK_URL = "https://puma-faster-collapse.ngrok-free.dev/webhook/voice-pro
 def get_supabase():
     return create_client(SUPABASE_URL, SUPABASE_KEY)
 
+# --- Live Location & Map Helper ---
+get_gps_js = """
+async () => {
+    return new Promise((resolve) => {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (pos) => resolve(pos.coords.latitude.toFixed(4) + ", " + pos.coords.longitude.toFixed(4)),
+                (err) => resolve("25.1800, 75.8300")
+            );
+        } else {
+            resolve("25.1800, 75.8300");
+        }
+    });
+}
+"""
+
+def update_map(coords_str):
+    if not coords_str or "," not in str(coords_str):
+        coords_str = "25.1800, 75.8300"
+    try:
+        lat, lon = [x.strip() for x in str(coords_str).split(",")]
+        lat_f, lon_f = float(lat), float(lon)
+        bbox = f"{lon_f-0.03},{lat_f-0.03},{lon_f+0.03},{lat_f+0.03}"
+        return f''
+    except Exception:
+        return '<div>Map preview unavailable</div>'
 
 def enhance_to_studio_image(input_image):
     if input_image is None:
@@ -234,12 +260,29 @@ with gr.Blocks(title="GraminBazaar") as demo:
                     )
                     raw_cost = gr.Number(label="Kacchi Samagri ki Laagat (₹)", value=100)
                     output_lang=gr.Radio(choices=["Hindi","English","Hinglish"],value="Hindi",label="Output Language")
+                    with gr.Row():
+                        loc_btn = gr.Button("📍 Upload My Live Location", variant="secondary")
+                        seller_location = gr.Textbox(label="Artisan Location Coordinates", value="25.1800, 75.8300")
+
+                    map_html = gr.HTML(
+                           value='',
+                           label="Location Map"
+                    )
                 
                 with gr.Column():
                     cam_input = gr.Image(label="Product Photo (Camera/Upload)", sources=["webcam", "upload"], type="numpy")
                     mic_input = gr.Audio(label="Voice Description (Mic/Upload)", sources=["microphone", "upload"], type="filepath")
 
             gen_btn = gr.Button("✨ Generate AI Catalog & Fair Price", variant="primary")
+            loc_btn.click(
+                fn=None,
+                js=get_gps_js,
+                outputs=seller_location
+            ).then(
+                 fn=update_map,
+                inputs=seller_location,
+                outputs=map_html
+            )
 
             with gr.Row():
                 enhanced_out = gr.Image(label="Auto-Enhanced Photo")
