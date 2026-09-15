@@ -7,6 +7,7 @@ from PIL import Image, ImageEnhance,ImageFilter,ImageDraw
 import os
 import io
 import scipy.io.wavfile as wavfile
+import base64
 # ==========================================
 # 1. CONFIGURATION
 # ==========================================
@@ -121,7 +122,7 @@ def process_product_data(image, audio, raw_cost):
 
     return enhanced_image, title_text, desc_text, int(suggested_price)
 
-def publish_to_db(name, phone, category, title, desc, price,image,):
+def publish_to_db(name, phone, category, title, desc, price, image):
     if not name or not phone:
         return "❌ Kripya apna naam aur WhatsApp number zaroor bharein!"
     try:
@@ -129,6 +130,26 @@ def publish_to_db(name, phone, category, title, desc, price,image,):
     except Exception:
         clean_price = 0.0    
     
+    # फोटो को Base64 में सुरक्षित कन्वर्ट करें ताकि डेटाबेस क्रैश न हो
+    final_img_url = "https://images.unsplash.com/photo-1578749556568-bc2c40e68b61"
+    if image is not None:
+        try:
+            if isinstance(image, np.ndarray):
+                pil_img = Image.fromarray(image)
+            elif isinstance(image, Image.Image):
+                pil_img = image
+            else:
+                pil_img = Image.open(image)
+
+            pil_img = pil_img.convert("RGB")
+            pil_img.thumbnail((450, 450), Image.Resampling.LANCZOS)
+            buf = io.BytesIO()
+            pil_img.save(buf, format="JPEG", quality=80)
+            img_b64 = base64.b64encode(buf.getvalue()).decode('utf-8')
+            final_img_url = f"data:image/jpeg;base64,{img_b64}"
+        except Exception:
+            pass
+
     payload = {
         "artisan_name": str(name).strip(),
         "artisan_phone": str(phone).strip(),
@@ -136,7 +157,7 @@ def publish_to_db(name, phone, category, title, desc, price,image,):
         "title_hi": str(title) if title else "Bina Naam Ka Saman",
         "desc_hi": str(desc) if desc else "",
         "suggested_price": clean_price,
-        "image_url": image if image else "https://images.unsplash.com/photo-1578749556568-bc2c40e68b61",
+        "image_url": final_img_url,
     }
 
     headers = {
