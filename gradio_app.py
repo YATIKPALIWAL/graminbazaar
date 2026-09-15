@@ -121,7 +121,7 @@ def process_product_data(image, audio, raw_cost):
 
     return enhanced_image, title_text, desc_text, int(suggested_price)
 
-def publish_to_db(name, phone, category, title, desc, price):
+def publish_to_db(name, phone, category, title, desc, price,image,):
     if not name or not phone:
         return "❌ Kripya apna naam aur WhatsApp number zaroor bharein!"
     try:
@@ -136,7 +136,7 @@ def publish_to_db(name, phone, category, title, desc, price):
         "title_hi": str(title) if title else "Bina Naam Ka Saman",
         "desc_hi": str(desc) if desc else "",
         "suggested_price": clean_price,
-        "image_url": "https://images.unsplash.com/photo-1578749556568-bc2c40e68b61"
+        "image_url": image if image else "https://images.unsplash.com/photo-1578749556568-bc2c40e68b61",
     }
 
     headers = {
@@ -243,7 +243,7 @@ with gr.Blocks(title="GraminBazaar") as demo:
 
             publish_btn.click(
                 fn=publish_to_db,
-                inputs=[seller_name, seller_phone, category, title_out, desc_out, price_out],
+                inputs=[seller_name, seller_phone, category, title_out, desc_out, price_out,enhanced_out],
                 outputs=[publish_status]
             )
 
