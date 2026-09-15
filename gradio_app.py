@@ -233,7 +233,7 @@ with gr.Blocks(title="GraminBazaar") as demo:
                         value="Clay Pottery & Crafts"
                     )
                     raw_cost = gr.Number(label="Kacchi Samagri ki Laagat (₹)", value=100)
-                    output_lang=gr.Radio(choices=["Hindi","English","Hinglish"]),value="Hindi",label="Output Language"
+                    output_lang=gr.Radio(choices=["Hindi","English","Hinglish"],value="Hindi",label="Output Language")
                 
                 with gr.Column():
                     cam_input = gr.Image(label="Product Photo (Camera/Upload)", sources=["webcam", "upload"], type="numpy")
